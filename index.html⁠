@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sakura Anime Tile Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Sakura Particle Canvas -->
+    <canvas id="sakura-canvas"></canvas>
+
+    <!-- Audio Controls Bar -->
+    <div class="audio-bar">
+        <button id="music-btn" class="icon-btn" onclick="toggleMusic()">🎵 BGM: OFF</button>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen active">
+        <div class="sakura-card">
+            <h1 class="title">🌸 SAKURA PUZZLE 🌸</h1>
+            <p class="subtitle">Complete 100 anime image puzzles!</p>
+            <button class="anime-btn" onclick="showScreen('level-screen')">PLAY GAME</button>
+        </div>
+    </div>
+
+
+    <!-- Level Selection Screen -->
+    <div id="level-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="showScreen('home-screen')">⬅ Home</button>
+            <h2>Select Level (1 - 100)</h2>
+        </div>
+        <div id="level-grid" class="level-grid"></div>
+    </div>
+
+    <!-- Gameplay Arena -->
+    <div id="game-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="showScreen('level-screen')">⬅ Levels</button>
+            <h2 id="current-level-title">Level 1</h2>
+        </div>
+        
+        <p class="instruction-text">Click two tiles to swap their positions</p>
+        <div id="puzzle-container"></div>
+        
+        <div class="controls">
+            <button class="anime-btn alt" onclick="resetPuzzle()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="modal">
+        <div class="modal-content sakura-card">
+            <h2>🌸 LEVEL CLEARED! 🌸</h2>
+            <p>Great job! You completed the image.</p>
+            <div class="modal-btns">
+                <button class="anime-btn" onclick="nextLevel()">Next Level ➔</button>
+                <button class="anime-btn alt" onclick="showScreen('level-screen')">Level List</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="levels.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
