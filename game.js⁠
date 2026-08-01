@@ -1,0 +1,236 @@
+// --- 1. Web Audio Synth Engine ---
+let audioCtx = null;
+let isMusicPlaying = false;
+let musicInterval = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSwapSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+}
+
+function playWinSound() {
+    initAudio();
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, index) => {
+        setTimeout(() => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }, index * 100);
+    });
+}
+
+function toggleMusic() {
+    initAudio();
+    const btn = document.getElementById('music-btn');
+    if (isMusicPlaying) {
+        clearInterval(musicInterval);
+        isMusicPlaying = false;
+        btn.innerText = '🎵 BGM: OFF';
+    } else {
+        isMusicPlaying = true;
+        btn.innerText = '🎵 BGM: ON';
+        const chords = [261.63, 329.63, 392.00, 493.88];
+        musicInterval = setInterval(() => {
+            const freq = chords[Math.floor(Math.random() * chords.length)];
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.5);
+        }, 1200);
+    }
+}
+
+// --- 2. Puzzle Mechanics & Win Check ---
+let currentLevelIndex = 0;
+let currentLevel = null;
+let selectedTile = null;
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('victory-modal').classList.remove('active');
+    document.getElementById(screenId).classList.add('active');
+    if (screenId === 'level-screen') renderLevelGrid();
+}
+
+function renderLevelGrid() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    window.GAME_LEVELS.forEach((item, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.innerText = item.level;
+        btn.onclick = () => {
+            currentLevelIndex = idx;
+            startLevel(item);
+        };
+        grid.appendChild(btn);
+    });
+}
+
+function startLevel(levelData) {
+    currentLevel = levelData;
+    document.getElementById('current-level-title').innerText = `${levelData.name} (${levelData.level}/100)`;
+    showScreen('game-screen');
+    setupPuzzleBoard();
+}
+
+function setupPuzzleBoard() {
+    const container = document.getElementById('puzzle-container');
+    container.innerHTML = '';
+    selectedTile = null;
+
+    const grid = currentLevel.grid;
+    container.style.gridTemplateColumns = `repeat(${grid}, 1fr)`;
+    const totalTiles = grid * grid;
+
+    let posArray = Array.from({ length: totalTiles }, (_, i) => i);
+    do {
+        posArray.sort(() => Math.random() - 0.5);
+    } while (posArray.every((val, i) => val === i));
+
+    posArray.forEach((correctPos) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        
+        const tileSize = 320 / grid;
+        const correctRow = Math.floor(correctPos / grid);
+        const correctCol = correctPos % grid;
+
+        tile.style.backgroundImage = `url('${currentLevel.image}')`;
+        tile.style.backgroundPosition = `-${correctCol * tileSize}px -${correctRow * tileSize}px`;
+        tile.dataset.correctPos = correctPos;
+        tile.onclick = () => handleTileClick(tile);
+
+        container.appendChild(tile);
+    });
+}
+
+function handleTileClick(tile) {
+    initAudio();
+    if (!selectedTile) {
+        selectedTile = tile;
+        tile.classList.add('selected');
+    } else if (selectedTile === tile) {
+        selectedTile.classList.remove('selected');
+        selectedTile = null;
+    } else {
+        const tempCorrectPos = selectedTile.dataset.correctPos;
+        const tempBgPos = selectedTile.style.backgroundPosition;
+
+        selectedTile.dataset.correctPos = tile.dataset.correctPos;
+        selectedTile.style.backgroundPosition = tile.style.backgroundPosition;
+
+        tile.dataset.correctPos = tempCorrectPos;
+        tile.style.backgroundPosition = tempBgPos;
+
+        selectedTile.classList.remove('selected');
+        selectedTile = null;
+
+        playSwapSound();
+        checkWinCondition();
+    }
+}
+
+function checkWinCondition() {
+    const tiles = Array.from(document.querySelectorAll('.tile'));
+    const isSolved = tiles.every((tile, index) => parseInt(tile.dataset.correctPos) === index);
+
+    if (isSolved) {
+        setTimeout(() => {
+            playWinSound();
+            document.getElementById('victory-modal').classList.add('active');
+        }, 200);
+    }
+}
+
+function nextLevel() {
+    if (currentLevelIndex < window.GAME_LEVELS.length - 1) {
+        currentLevelIndex++;
+        startLevel(window.GAME_LEVELS[currentLevelIndex]);
+    } else {
+        alert("🎉 Congratulations! You cleared all 100 levels!");
+        showScreen('level-screen');
+    }
+}
+
+function resetPuzzle() {
+    if (currentLevel) setupPuzzleBoard();
+}
+
+// --- 3. Sakura Petals Canvas Engine ---
+const canvas = document.getElementById('sakura-canvas');
+const ctx = canvas.getContext('2d');
+
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+
+window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+});
+
+const petals = Array.from({ length: 35 }, () => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    size: Math.random() * 7 + 5,
+    speedY: Math.random() * 1.5 + 0.8,
+    speedX: Math.random() * 1 - 0.5,
+    angle: Math.random() * 360,
+    spin: Math.random() * 0.04 - 0.02
+}));
+
+function animateSakura() {
+    ctx.clearRect(0, 0, width, height);
+    petals.forEach(p => {
+        p.y += p.speedY;
+        p.x += Math.sin(p.y / 30) + p.speedX;
+        p.angle += p.spin;
+
+        if (p.y > height) {
+            p.y = -10;
+            p.x = Math.random() * width;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size, p.size / 2, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 183, 197, 0.7)';
+        ctx.fill();
+        ctx.restore();
+    });
+    requestAnimationFrame(animateSakura);
+}
+
+animateSakura();
